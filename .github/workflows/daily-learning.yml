@@ -1,0 +1,77 @@
+
+name: Daily Learning Tasks
+
+on:
+  schedule:
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  create-daily-task:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create today's learning task
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const day = new Intl.DateTimeFormat("en-US", {
+              timeZone: "Africa/Nairobi",
+              weekday: "long"
+            }).format(new Date());
+
+            const date = new Intl.DateTimeFormat("en-CA", {
+              timeZone: "Africa/Nairobi",
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit"
+            }).format(new Date());
+
+            const tasks = {
+              Monday: ["Python Programming", "Write and test a Python program that validates user input and processes a list."],
+              Tuesday: ["JavaScript and React", "Build a small task manager with add, edit and delete functionality."],
+              Wednesday: ["Linux Administration", "Practise Linux file management, permissions, users and processes."],
+              Thursday: ["Networking", "Practise IP addressing, subnetting, DNS and network troubleshooting."],
+              Friday: ["Cybersecurity", "Inspect Linux security settings and identify weaknesses in your own lab."],
+              Saturday: ["Git and GitHub", "Practise branches, commits, pull requests and merge conflicts."],
+              Sunday: ["Weekly Review", "Review, test and document your completed work."]
+            };
+
+            const [category, assignment] = tasks[day];
+            const title = `[${date}] ${category}`;
+
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "all",
+              per_page: 100
+            });
+
+            if (issues.some(issue => issue.title === title)) {
+              core.info("Today's assignment already exists.");
+              return;
+            }
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body: `# Daily Learning Assignment
+
+            **Date:** ${date}
+            **Category:** ${category}
+
+            ## Practical task
+            ${assignment}
+
+            ## Completion checklist
+            - [ ] Complete the exercise.
+            - [ ] Test your work.
+            - [ ] Document what you learned.
+            - [ ] Commit and push your actual work.
+            - [ ] Review and close this issue when complete.`
+            });
